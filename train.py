@@ -21,6 +21,7 @@ def train(model, train_loader, val_loader, args):
     optimizer = torch.optim.SGD(model.parameters(), args.lr,
                                 momentum=args.momentum,
                                 weight_decay=args.weight_decay)
+    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, epochs)
     
     curr_weights, _ = util.num_nonzeros(model)
     macs = curr_weights
@@ -30,7 +31,7 @@ def train(model, train_loader, val_loader, args):
     best_path = args.save_path.split('.pth')[0] + '.best.pth'
     best_test_acc = 0
     for epoch in range(1, args.epochs + 1):
-        util.adjust_learning_rate(optimizer, epoch, args)
+        scheduler.step()
         for g in optimizer.param_groups:     
             lr = g['lr']                    
             break        

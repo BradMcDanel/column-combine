@@ -1,4 +1,4 @@
-from __future__ import print_function
+import math
 
 import numpy as np
 import torch
@@ -182,7 +182,7 @@ def count_nonzeros(model_path):
     return rows, cols
  
 
-def pack_model(model, overlap_pct, metric='min', verbose=False):
+def pack_model(model, overlap_pct, metric='min', verbose=False, section_size=256):
     model.eval()
     model.cuda()
     combined_rows, combined_cols = [], []
@@ -192,19 +192,26 @@ def pack_model(model, overlap_pct, metric='min', verbose=False):
         B, C, W, H = param.shape
         overlap = int(overlap_pct*B)
         param = param.view(B, C*W*H).cpu().numpy()
-        mat = np.copy(param)
-        mat[mat!=0] = 1
-        row_idxs, col_idxs = pack_matrix(param, max_paths=layer.groups,
-                                         max_overlap=overlap, metric=metric)
-        d_mat = densify(mat, col_idxs, row_idxs)
-        d_mat[d_mat>1] = 1
+        num_sections = math.ceil(param.shape[1] / section_size)
+        col_idxs = []
+        for j in range(num_sections):
+            if verbose: 
+                print(j)
+            start_idx = section_size*j
+            end_idx = section_size*(j+1)
+            row_idxs, cols_j = pack_matrix(param[:, start_idx:end_idx],
+                                           max_paths=layer.groups,
+                                           max_overlap=overlap, metric=metric)
+            cols_j = [[cj + start_idx for cj in ci] for ci in cols_j]
+            col_idxs.extend(cols_j)
+
         total_row_idxs.append(row_idxs)
         total_col_idxs.append(col_idxs)
 
         if verbose:
-            print('Layer {}:\t({}, {}, {})'.format(i, d_mat.shape[0], d_mat.shape[1], d_mat.sum()))
-        combined_rows.append(d_mat.shape[0])
-        combined_cols.append(d_mat.shape[1])
+            print('Layer {}:\t({}, {})'.format(i, len(row_idxs), len(col_idxs)))
+        combined_rows.append(len(row_idxs))
+        combined_cols.append(len(col_idxs))
         fix_mask(layer, row_idxs, col_idxs)
 
     model.packed_layer_size = list(zip(combined_rows, combined_cols))

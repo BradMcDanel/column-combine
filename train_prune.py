@@ -14,6 +14,7 @@ cudnn.benchmark = True
 
 import datasets
 import util
+import packing
 
 
 def train(model, train_loader, val_loader, args):
@@ -21,6 +22,7 @@ def train(model, train_loader, val_loader, args):
     optimizer = torch.optim.SGD(model.parameters(), args.lr,
                                 momentum=args.momentum,
                                 weight_decay=args.weight_decay)
+    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, args.epochs)
     prune_epoch = 0
     prune_epochs = int(0.5*args.epochs)
     prune_rates = [(1 - (1 - (i / prune_epochs))**3) for i in range(prune_epochs)]
@@ -37,15 +39,23 @@ def train(model, train_loader, val_loader, args):
     best_path = args.save_path.split('.pth')[0] + '.best.pth'
     best_test_acc = 0
     for epoch in range(1, args.epochs + 1):
-        util.adjust_learning_rate(optimizer, epoch, args)
+        scheduler.step()
         for g in optimizer.param_groups:     
             lr = g['lr']                    
             break        
 
+        # prune smallest weights up to a set prune_rate
         if epoch in prune_epochs:
             util.prune(model, prune_rates[prune_epoch])
             curr_weights, num_weights = util.num_nonzeros(model)
             prune_epoch += 1
+
+        # final pruning stage (perform column combining)
+        if epoch == prune_epochs[-1]:
+            packing.pack_model(model, 0.5)
+
+            # disable l1 penalty, as target sparsity is reached
+            args.l1_penalty = 0
 
         print('     :: [{}]\tLR {:.4f}\tNonzeros ({}/{})'.format(
             epoch, lr, curr_weights, num_weights))
