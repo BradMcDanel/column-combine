@@ -210,7 +210,7 @@ class ShiftMobile(nn.Module):
                 prev_groups = g
 
         if dropout:
-            layers.append(nn.Dropout(0.8))
+            layers.append(nn.Dropout(0.2))
 
         layers.append(layer(input_channel, n_class, 1, 1, layer_idx, num_layers))
         self.model = nn.Sequential(*layers)
