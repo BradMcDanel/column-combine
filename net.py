@@ -143,7 +143,7 @@ def make_shift_layer(args):
                 layer.append(CheckerboardReshape(args.reshape_stride))
             layer.append(Conv2d(in_channels, out_channels, 1, stride, 0, groups=groups))
             layer.append(nn.BatchNorm2d(out_channels))
-            layer.append(nn.ReLU(inplace=True))
+            layer.append(nn.ReLU6(inplace=True))
         elif last:
             layer.append(nn.AdaptiveAvgPool2d(1))
             layer.append(View((-1, in_channels)))
@@ -152,7 +152,7 @@ def make_shift_layer(args):
             layer.append(Shift(in_channels, 3))
             layer.append(Conv2d(in_channels, out_channels, 1, stride, 0, groups=groups))
             layer.append(nn.BatchNorm2d(out_channels))
-            layer.append(nn.ReLU(inplace=True))
+            layer.append(nn.ReLU6(inplace=True))
 
         layer = nn.Sequential(*layer)
 
@@ -171,7 +171,7 @@ def make_vgg_layer(args):
                 layer.append(CheckerboardReshape(args.reshape_stride))
             layer.append(Conv2d(in_channels, out_channels, 3, stride, 1, groups=groups))
             layer.append(nn.BatchNorm2d(out_channels))
-            layer.append(nn.ReLU(inplace=True))
+            layer.append(nn.ReLU6(inplace=True))
         elif last:
             layer.append(nn.AdaptiveAvgPool2d(1))
             layer.append(View((-1, in_channels)))
@@ -179,7 +179,7 @@ def make_vgg_layer(args):
         else:
             layer.append(Conv2d(in_channels, out_channels, 3, stride, 1, groups=groups))
             layer.append(nn.BatchNorm2d(out_channels))
-            layer.append(nn.ReLU(inplace=True))
+            layer.append(nn.ReLU6(inplace=True))
 
         layer = nn.Sequential(*layer)
 
