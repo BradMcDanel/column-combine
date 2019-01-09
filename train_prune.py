@@ -24,9 +24,10 @@ def train(model, train_loader, val_loader, args):
                                 weight_decay=args.weight_decay)
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, args.epochs)
     prune_epoch = 0
+    max_prune_rate = 0.8
     prune_epochs = int(0.5*args.epochs)
-    prune_rates = [(1 - (1 - (i / prune_epochs))**3) for i in range(prune_epochs)]
-    prune_rates[-1] = 1.0
+    prune_rates = [max_prune_rate*(1 - (1 - (i / prune_epochs))**3) for i in range(prune_epochs)]
+    prune_rates[-1] = max_prune_rate
     prune_epochs = np.arange(1, prune_epochs + 1)
     print("Pruning Epochs: {}".format(prune_epochs))
     print("Pruning Rates: {}".format(prune_rates))
@@ -52,7 +53,9 @@ def train(model, train_loader, val_loader, args):
 
         # final pruning stage (perform column combining)
         if epoch == prune_epochs[-1]:
-            packing.pack_model(model, 0.5)
+            packing.pack_model(model, args.gamma)
+            macs = np.sum([x*y for x, y in model.packed_layer_size])
+            curr_weights, num_weights = util.num_nonzeros(model)
 
             # disable l1 penalty, as target sparsity is reached
             args.l1_penalty = 0
@@ -65,6 +68,8 @@ def train(model, train_loader, val_loader, args):
         is_best = test_acc > best_test_acc
         best_test_acc = max(test_acc, best_test_acc)
         model.stats['lr'].append(lr)
+        model.stats['macs'].append(macs)
+        model.stats['weight'].append(curr_weights)
         model.stats['efficiency'].append(100.0 * (curr_weights / macs))
         model.optimizer = optimizer.state_dict()
         model.epoch = epoch
@@ -92,6 +97,8 @@ if __name__ == '__main__':
                         help='learning rate (default: 0.1)')
     parser.add_argument('--l1-penalty', type=float, default=0.0,
                         help='l1 penalty (default: 0.0)')
+    parser.add_argument('--gamma', type=float, default=0.5,
+                        help='column combine gamma parameter (default: 0.5)')
     parser.add_argument('--momentum', default=0.9, type=float, help='momentum')
     parser.add_argument('--wd', '--weight-decay', default=1e-4, type=float,
                         help='weight decay (default: 1e-4)', dest='weight_decay')
