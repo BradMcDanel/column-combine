@@ -24,11 +24,13 @@ def train(model, train_loader, val_loader, args):
                                 weight_decay=args.weight_decay)
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, args.epochs)
     prune_epoch = 0
-    max_prune_rate = 0.8
-    prune_epochs = int(0.5*args.epochs)
-    prune_rates = [max_prune_rate*(1 - (1 - (i / prune_epochs))**3) for i in range(prune_epochs)]
+    max_prune_rate = 1.0
+    final_prune_epoch = int(0.5*args.epochs)
+    num_prune_epochs = 10
+    prune_rates = [max_prune_rate*(1 - (1 - (i / num_prune_epochs))**3)
+                   for i in range(num_prune_epochs)]
     prune_rates[-1] = max_prune_rate
-    prune_epochs = np.arange(1, prune_epochs + 1)
+    prune_epochs = np.linspace(0, final_prune_epoch, num_prune_epochs).astype('i').tolist()
     print("Pruning Epochs: {}".format(prune_epochs))
     print("Pruning Rates: {}".format(prune_rates))
 
@@ -51,8 +53,8 @@ def train(model, train_loader, val_loader, args):
             curr_weights, num_weights = util.num_nonzeros(model)
             prune_epoch += 1
 
-        # final pruning stage (perform column combining)
-        if epoch == prune_epochs[-1]:
+        # # final pruning stage (perform column combining)
+        # if epoch == prune_epochs[-1]:
             packing.pack_model(model, args.gamma)
             macs = np.sum([x*y for x, y in model.packed_layer_size])
             curr_weights, num_weights = util.num_nonzeros(model)
