@@ -34,7 +34,7 @@ def train(model, train_loader, val_loader, args):
     print("Pruning Epochs: {}".format(prune_epochs))
     print("Pruning Rates: {}".format(prune_rates))
 
-    curr_weights, _ = util.num_nonzeros(model)
+    curr_weights, num_weights = util.num_nonzeros(model)
     macs = curr_weights
 
     model.stats = {'train_loss': [], 'test_acc': [], 'test_loss': [],
@@ -54,11 +54,11 @@ def train(model, train_loader, val_loader, args):
             prune_epoch += 1
 
         # # final pruning stage (perform column combining)
-        # if epoch == prune_epochs[-1]:
             packing.pack_model(model, args.gamma)
             macs = np.sum([x*y for x, y in model.packed_layer_size])
             curr_weights, num_weights = util.num_nonzeros(model)
 
+        if epoch == prune_epochs[-1]:
             # disable l1 penalty, as target sparsity is reached
             args.l1_penalty = 0
 
