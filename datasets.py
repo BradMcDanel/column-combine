@@ -6,6 +6,7 @@ import cv2
 from torchvision import datasets, transforms 
 import torch
 from torch.utils.data.dataset import Dataset
+from torch.utils.data.sampler import SubsetRandomSampler
 import numpy as np
 from PIL import Image
 
@@ -35,9 +36,9 @@ class InMemoryImageNet(Dataset):
         return self.num_samples
 
 def get_dataset(dataset_root, dataset, batch_size, is_cuda=True, aug='+',
-                val_only=False, input_size=224):
+                val_only=False, input_size=224, sample_ratio=1):
     if dataset == 'cifar10':
-        return get_cifar10(dataset_root, batch_size, is_cuda, aug)
+        return get_cifar10(dataset_root, batch_size, is_cuda, aug, sample_ratio)
     elif dataset == 'imagenet':
         return get_imagenet(dataset_root, batch_size, is_cuda, val_only=val_only,
                             input_size=input_size)
@@ -47,7 +48,7 @@ def get_dataset(dataset_root, dataset, batch_size, is_cuda=True, aug='+',
     return train, train_loader, test, test_loader
 
 
-def get_cifar10(dataset_root, batch_size, is_cuda=True, aug='+'):
+def get_cifar10(dataset_root, batch_size, is_cuda=True, aug='+', sample_ratio=1):
     kwargs = {'num_workers': 16, 'pin_memory': True} if is_cuda else {}
     stds = (0.247, 0.243, 0.261)
 
@@ -74,8 +75,19 @@ def get_cifar10(dataset_root, batch_size, is_cuda=True, aug='+'):
                             transforms.Normalize((0.4914, 0.4822, 0.4465), stds),
                         ]))
 
-    train_loader = torch.utils.data.DataLoader(train, batch_size=batch_size,
-                                                shuffle=True, drop_last=False, **kwargs)
+    if sample_ratio == 1:
+        train_loader = torch.utils.data.DataLoader(train, batch_size=batch_size,
+                                                   shuffle=True, drop_last=False, **kwargs)
+    else:
+        idxs = []
+        train.train_labels = np.array(train.train_labels)
+        for label in range(10):
+            label_idxs = np.where(train.train_labels == label)[0]
+            num_keep = int(sample_ratio*len(label_idxs))
+            idxs.extend(label_idxs[:num_keep])
+        train_loader = torch.utils.data.DataLoader(train, batch_size=batch_size,
+                                                   sampler=SubsetRandomSampler(idxs),
+                                                   shuffle=False, drop_last=False, **kwargs)
     test_loader = torch.utils.data.DataLoader(test, batch_size=batch_size,
                                                shuffle=False, drop_last=False, **kwargs)
     train_loader.num_samples = len(train)

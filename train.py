@@ -21,7 +21,7 @@ def train(model, train_loader, val_loader, args):
     optimizer = torch.optim.SGD(model.parameters(), args.lr,
                                 momentum=args.momentum,
                                 weight_decay=args.weight_decay)
-    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, epochs)
+    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, args.epochs)
     
     curr_weights, _ = util.num_nonzeros(model)
     macs = curr_weights

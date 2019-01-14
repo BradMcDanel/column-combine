@@ -25,6 +25,7 @@ def train(model, train_loader, val_loader, args):
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, args.epochs)
     prune_epoch = 0
     max_prune_rate = 0.85
+    max_prune_rate = 0.8
     final_prune_epoch = int(0.5*args.epochs)
     num_prune_epochs = 10
     prune_rates = [max_prune_rate*(1 - (1 - (i / num_prune_epochs))**3)
@@ -95,6 +96,8 @@ if __name__ == '__main__':
                         help='input batch size for training (default: 64)')
     parser.add_argument('--epochs', type=int, default=50,
                         help='number of epochs to train (default: 50)')
+    parser.add_argument('--sample-ratio', type=float, default=1.,
+                        help='ratio of training data used')
     parser.add_argument('--lr', type=float, default=0.1,
                         help='learning rate (default: 0.1)')
     parser.add_argument('--l1-penalty', type=float, default=0.0,
@@ -128,7 +131,7 @@ if __name__ == '__main__':
 
     # load dataset
     data = datasets.get_dataset(args.dataset_root, args.dataset, args.batch_size,
-                                args.cuda, args.aug, input_size=args.input_size)
+                                args.cuda, args.aug, input_size=args.input_size, sample_ratio=args.sample_ratio)
     train_dataset, train_loader, test_dataset, test_loader = data
 
     # load or create model
