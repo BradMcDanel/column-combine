@@ -24,6 +24,7 @@ def train(model, train_loader, val_loader, args):
                                 weight_decay=args.weight_decay)
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, args.epochs)
     prune_epoch = 0
+    max_prune_rate = 0.85
     max_prune_rate = 0.8
     final_prune_epoch = int(0.5*args.epochs)
     num_prune_epochs = 10
