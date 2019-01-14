@@ -66,6 +66,8 @@ if __name__ == '__main__':
                         help='input batch size for training (default: 64)')
     parser.add_argument('--epochs', type=int, default=50,
                         help='number of epochs to train (default: 50)')
+    parser.add_argument('--sample-ratio', type=float, default=1.,
+                        help='ratio of training data used')
     parser.add_argument('--lr', type=float, default=0.1,
                         help='learning rate (default: 0.1)')
     parser.add_argument('--l1-penalty', type=float, default=0.0,
@@ -97,7 +99,8 @@ if __name__ == '__main__':
 
     # load dataset
     data = datasets.get_dataset(args.dataset_root, args.dataset, args.batch_size,
-                                args.cuda, args.aug, input_size=args.input_size)
+                                args.cuda, args.aug, input_size=args.input_size,
+                                sample_ratio=args.sample_ratio)
     train_dataset, train_loader, test_dataset, test_loader = data
 
     # load or create model
@@ -111,6 +114,5 @@ if __name__ == '__main__':
 
     print(model)
     print(util.num_nonzeros(model))
-    print('Target Nonzeros:', util.target_nonzeros(model))
 
     train(model, train_loader, test_loader, args)

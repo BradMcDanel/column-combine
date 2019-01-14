@@ -130,7 +130,8 @@ if __name__ == '__main__':
 
     # load dataset
     data = datasets.get_dataset(args.dataset_root, args.dataset, args.batch_size,
-                                args.cuda, args.aug, input_size=args.input_size, sample_ratio=args.sample_ratio)
+                                args.cuda, args.aug, input_size=args.input_size,
+                                sample_ratio=args.sample_ratio)
     train_dataset, train_loader, test_dataset, test_loader = data
 
     # load or create model
