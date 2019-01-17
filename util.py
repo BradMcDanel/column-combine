@@ -110,7 +110,7 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
     return losses.avg
 
 
-def validate(val_loader, model, criterion, epoch, args):
+def validate(val_loader, model, criterion, epoch, args, no_print=False):
     batch_time = AverageMeter()
     losses = AverageMeter()
     top1 = AverageMeter()
@@ -142,12 +142,13 @@ def validate(val_loader, model, criterion, epoch, args):
 
             # record stats in model for visualization
 
-        print('Test :: [{0}][{1}/{2}]\t'
-              'Loss {loss.avg:.4f}\t'
-              'Acc@1 {top1.avg:.3f}\t'
-              'Acc@5 {top5.avg:.3f}'.format(
-              epoch, i, len(val_loader) - 1,
-              loss=losses, top1=top1, top5=top5))
+        if not no_print:
+            print('Test :: [{0}][{1}/{2}]\t'
+                'Loss {loss.avg:.4f}\t'
+                'Acc@1 {top1.avg:.3f}\t'
+                'Acc@5 {top5.avg:.3f}'.format(
+                epoch, i, len(val_loader) - 1,
+                loss=losses, top1=top1, top5=top5))
 
     model.stats['test_loss'].append(losses.avg)
     model.stats['test_acc'].append(top1.avg)

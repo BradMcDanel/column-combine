@@ -74,24 +74,19 @@ if __name__ == '__main__':
     parser.add_argument('--aug', default='+', help='data augmentation level (`-`, `+`)')
     parser.add_argument('--batch-size', type=int, default=64,
                         help='input batch size for training (default: 64)')
-    parser.add_argument('--sample-ratio', type=float, default=1.,
-                        help='ratio of training data used')
     args = parser.parse_args()
     args.cuda = torch.cuda.is_available()
 
     criterion = nn.CrossEntropyLoss().cuda()
     data = datasets.get_dataset(args.dataset_root, args.dataset, args.batch_size,
                                 args.cuda, args.aug, input_size=args.input_size,
-                                sample_ratio=args.sample_ratio)
+                                val_only=True)
     train_dataset, train_loader, test_dataset, test_loader = data
     model = torch.load('models/cifar10/cifar10-shift-pruned-1.0.pth')
 
-    model.cuda()
-    print('Before Fuse + Quantize')
-    util.validate(test_loader, model, criterion, 0, args)
-    model.cpu()
+    print('Before Fuse + Quantize: {:2.4f}'.format(model.stats['test_acc'][-1]))
 
     fuse_quantize_model(model)
-    print('After Fuse + Quantize')
     model.cuda()
-    util.validate(test_loader, model, criterion, 0, args)
+    _, top1 = util.validate(test_loader, model, criterion, 0, args, no_print=True)
+    print('After Fuse + Quantize:  {:2.4f}'.format(top1))
