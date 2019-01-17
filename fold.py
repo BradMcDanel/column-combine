@@ -74,6 +74,7 @@ if __name__ == '__main__':
     parser.add_argument('--aug', default='+', help='data augmentation level (`-`, `+`)')
     parser.add_argument('--batch-size', type=int, default=64,
                         help='input batch size for training (default: 64)')
+    parser.add_argument('--load-path', help='path to model')
     args = parser.parse_args()
     args.cuda = torch.cuda.is_available()
 
@@ -82,7 +83,7 @@ if __name__ == '__main__':
                                 args.cuda, args.aug, input_size=args.input_size,
                                 val_only=True)
     train_dataset, train_loader, test_dataset, test_loader = data
-    model = torch.load('models/cifar10/cifar10-shift-pruned-1.0.pth')
+    model = torch.load(args.load_path)
 
     print('Before Fuse + Quantize: {:2.4f}'.format(model.stats['test_acc'][-1]))
 
