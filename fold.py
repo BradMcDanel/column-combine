@@ -1,4 +1,5 @@
 import argparse
+import math
 
 import torch
 import net
@@ -8,12 +9,20 @@ import util
 import quant
 
 
-def quant_linear(linear):
-    linear.weight.data = quant.linear_quantize(linear.weight.data, 6 / 256, 8)
-    linear.bias.data = quant.linear_quantize(linear.bias.data, 6 / 256, 8)
+def quant_linear(linear, bits=8):
+    w, b = linear.weight.data, linear.bias.data
+
+    sf = bits - 1. - quant.compute_integral_part(w, 0.0)
+    delta = math.pow(2.0, -sf)
+    linear.weight.data = quant.linear_quantize(w, delta, bits)
+
+    sf = bits - 1. - quant.compute_integral_part(b, 0.0)
+    delta = math.pow(2.0, -sf)
+    linear.bias.data = quant.linear_quantize(b, delta, bits)
+
     return linear
 
-def fuse_conv_bn(conv, bn):
+def fuse_conv_bn(conv, bn, bits=8):
     w = conv.weight
     mean = bn.running_mean
     var_sqrt = torch.sqrt(bn.running_var + bn.eps)
@@ -32,20 +41,28 @@ def fuse_conv_bn(conv, bn):
                          conv.padding,
                          bias=True)
     fused_conv.mask = conv.mask
-    w = quant.linear_quantize(w, 6 / 256, 8)
-    b = quant.linear_quantize(b, 6 / 256, 8)
+
+    sf = bits - 1. - quant.compute_integral_part(w, 0.0)
+    delta = math.pow(2.0, -sf)
+    w = quant.linear_quantize(w, delta, bits)
     fused_conv.weight = nn.Parameter(w)
+    print(delta)
+
+    sf = bits - 1. - quant.compute_integral_part(b, 0.0)
+    delta = math.pow(2.0, -sf)
+    b = quant.linear_quantize(b, delta, bits)
     fused_conv.bias = nn.Parameter(b)
+
     return fused_conv
 
 
-def fuse_quantize_model(model):
+def fuse_quantize_model(model, bits=8):
     for i, layer in enumerate(model):
         if i == 0:
             fuse_layer = nn.Sequential(
                 fuse_conv_bn(layer[0], layer[1]),
                 layer[2],
-                quant.LinearQuant(8, 6 / 256)
+                quant.LinearQuant(bits, 6 / 2**bits)
             )
             model.model[i] = fuse_layer
         elif i < len(model) - 1:
@@ -53,7 +70,7 @@ def fuse_quantize_model(model):
                 layer[0],
                 fuse_conv_bn(layer[1], layer[2]),
                 layer[3],
-                quant.LinearQuant(8, 6 / 256)
+                quant.LinearQuant(bits, 6 / 2**bits)
             )
             model.model[i] = fuse_layer
         elif i == len(model):
