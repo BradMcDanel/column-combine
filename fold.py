@@ -46,7 +46,6 @@ def fuse_conv_bn(conv, bn, bits=8):
     delta = math.pow(2.0, -sf)
     w = quant.linear_quantize(w, delta, bits)
     fused_conv.weight = nn.Parameter(w)
-    print(delta)
 
     sf = bits - 1. - quant.compute_integral_part(b, 0.0)
     delta = math.pow(2.0, -sf)
@@ -56,7 +55,7 @@ def fuse_conv_bn(conv, bn, bits=8):
     return fused_conv
 
 
-def fuse_quantize_model(model, bits=8):
+def fuse_shift_quantize_model(model, bits=8):
     for i, layer in enumerate(model):
         if i == 0:
             fuse_layer = nn.Sequential(
@@ -80,6 +79,24 @@ def fuse_quantize_model(model, bits=8):
                 quant_linear(layer[2]),
             )
             model.model[i] = fuse_layer
+
+def fuse_vgg_quantize_model(model, bits=8):
+    for i, layer in enumerate(model):
+        if i < len(model) - 1:
+            fuse_layer = nn.Sequential(
+                fuse_conv_bn(layer[0], layer[1]),
+                layer[2],
+                quant.LinearQuant(bits, 6 / 2**bits)
+            )
+            model.model[i] = fuse_layer
+        elif i == len(model):
+            fuse_layer = nn.Sequential(
+                layer[0],
+                layer[1],
+                quant_linear(layer[2]),
+            )
+            model.model[i] = fuse_layer
+ 
     
 
 if __name__ == '__main__':
@@ -104,7 +121,11 @@ if __name__ == '__main__':
 
     print('Before Fuse + Quantize: {:2.4f}'.format(model.stats['test_acc'][-1]))
 
-    fuse_quantize_model(model)
+    if type(model[1][0]) == net.Shift:
+        fuse_shift_quantize_model(model)
+    else:
+        fuse_vgg_quantize_model(model)
+
     model.cuda()
     _, top1 = util.validate(test_loader, model, criterion, 0, args, no_print=True)
     print('After Fuse + Quantize:  {:2.4f}'.format(top1))

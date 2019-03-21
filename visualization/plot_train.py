@@ -25,7 +25,7 @@ from config import init_mpl_settings
 init_mpl_settings()
 
 title = 'CIFAR-10 VGG-19 (1x1)'
-model_path = 'models/cifar10/cifar10-shift-0.75.pth'
+model_path = 'models/cifar10/cifar10-shift-1.75.pth'
 model = torch.load(model_path)
 
 fig, ax1 = plt.subplots()

@@ -37,7 +37,9 @@ class InMemoryImageNet(Dataset):
 
 def get_dataset(dataset_root, dataset, batch_size, is_cuda=True, aug='+',
                 val_only=False, input_size=224, sample_ratio=1):
-    if dataset == 'cifar10':
+    if dataset == 'mnist':
+        return get_mnist(dataset_root, batch_size, is_cuda, aug)
+    elif dataset == 'cifar10':
         return get_cifar10(dataset_root, batch_size, is_cuda, aug, sample_ratio)
     elif dataset == 'imagenet':
         return get_imagenet(dataset_root, batch_size, is_cuda, val_only=val_only,
@@ -47,6 +49,27 @@ def get_dataset(dataset_root, dataset, batch_size, is_cuda=True, aug='+',
 
     return train, train_loader, test, test_loader
 
+def get_mnist(dataset_root, batch_size, is_cuda=True, aug='+'):
+    kwargs = {'num_workers': 12, 'pin_memory': True} if is_cuda else {}
+    train = datasets.MNIST(os.path.join(dataset_root, 'mnist'), train=True, download=True, 
+                        transform=transforms.Compose([
+                            transforms.RandomCrop(32, padding=4),
+                            transforms.RandomHorizontalFlip(),
+                            transforms.ToTensor(),
+                            transforms.Normalize((0.1307,), (0.3081,)),
+                        ]))
+    test = datasets.MNIST(os.path.join(dataset_root, 'mnist'), train=False, download=True, 
+                        transform=transforms.Compose([
+                            transforms.Pad(2),
+                            transforms.ToTensor(),
+                            transforms.Normalize((0.1307,), (0.3081,)),
+                        ]))
+    train_loader = torch.utils.data.DataLoader(train, batch_size=batch_size,
+                                               shuffle=True, drop_last=False, **kwargs)
+    test_loader = torch.utils.data.DataLoader(test, batch_size=batch_size,
+                                               shuffle=False, drop_last=False, **kwargs)
+    
+    return train, train_loader, test, test_loader
 
 def get_cifar10(dataset_root, batch_size, is_cuda=True, aug='+', sample_ratio=1):
     kwargs = {'num_workers': 16, 'pin_memory': True} if is_cuda else {}

@@ -21,7 +21,7 @@ def build_model(args):
     else:
         layer = net.make_shift_layer(args)
     model = net.ShiftMobile(settings, layer=layer,
-                            in_channels=3*(args.reshape_stride**2),
+                            in_channels=args.input_channels*(args.reshape_stride**2),
                             n_class=args.n_class, dropout=args.dropout)
     return model
 

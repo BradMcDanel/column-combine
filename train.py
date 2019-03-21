@@ -14,6 +14,7 @@ cudnn.benchmark = True
 
 import datasets
 import util
+import packing
 
 
 def train(model, train_loader, val_loader, args):
@@ -22,8 +23,19 @@ def train(model, train_loader, val_loader, args):
                                 momentum=args.momentum,
                                 weight_decay=args.weight_decay)
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, args.epochs)
-    
-    curr_weights, _ = util.num_nonzeros(model)
+    prune_epoch = 0
+    max_prune_rate = 0.85
+    max_prune_rate = 0.8
+    final_prune_epoch = int(0.5*args.epochs)
+    num_prune_epochs = 10
+    prune_rates = [max_prune_rate*(1 - (1 - (i / num_prune_epochs))**3)
+                   for i in range(num_prune_epochs)]
+    prune_rates[-1] = max_prune_rate
+    prune_epochs = np.linspace(0, final_prune_epoch, num_prune_epochs).astype('i').tolist()
+    print("Pruning Epochs: {}".format(prune_epochs))
+    print("Pruning Rates: {}".format(prune_rates))
+
+    curr_weights, num_weights = util.num_nonzeros(model)
     macs = curr_weights
 
     model.stats = {'train_loss': [], 'test_acc': [], 'test_loss': [],
@@ -36,13 +48,29 @@ def train(model, train_loader, val_loader, args):
             lr = g['lr']                    
             break        
 
-        print('     :: [{}]\tLR {:.4f}'.format(epoch, lr))
+        # prune smallest weights up to a set prune_rate
+        if epoch in prune_epochs:
+            util.prune(model, prune_rates[prune_epoch])
+            curr_weights, num_weights = util.num_nonzeros(model)
+            packing.pack_model(model, args.gamma)
+            macs = np.sum([x*y for x, y in model.packed_layer_size])
+            curr_weights, num_weights = util.num_nonzeros(model)
+            prune_epoch += 1
+
+        if epoch == prune_epochs[-1]:
+            # disable l1 penalty, as target sparsity is reached
+            args.l1_penalty = 0
+
+        print('     :: [{}]\tLR {:.4f}\tNonzeros ({}/{})'.format(
+            epoch, lr, curr_weights, num_weights))
         train_loss = util.train(train_loader, model, criterion, optimizer, epoch, args)
         test_loss, test_acc = util.validate(val_loader, model, criterion, epoch, args)
 
         is_best = test_acc > best_test_acc
         best_test_acc = max(test_acc, best_test_acc)
         model.stats['lr'].append(lr)
+        model.stats['macs'].append(macs)
+        model.stats['weight'].append(curr_weights)
         model.stats['efficiency'].append(100.0 * (curr_weights / macs))
         model.optimizer = optimizer.state_dict()
         model.epoch = epoch
@@ -59,6 +87,7 @@ if __name__ == '__main__':
     parser.add_argument('--dataset-root', default='datasets/', help='dataset root folder')
     parser.add_argument('--dataset', default='cifar10', help='dataset name')
     parser.add_argument('--input-size', type=int, help='spatial width/height of input')
+    parser.add_argument('--input-channels', default=3, type=int, help='number of input channels')
     parser.add_argument('--n-class', type=int, help='number of classes')
     parser.add_argument('--aug', default='+', help='data augmentation level (`-`, `+`)')
     parser.add_argument('--save-path', required=True, help='path to save model')
@@ -72,6 +101,8 @@ if __name__ == '__main__':
                         help='learning rate (default: 0.1)')
     parser.add_argument('--l1-penalty', type=float, default=0.0,
                         help='l1 penalty (default: 0.0)')
+    parser.add_argument('--gamma', type=float, default=1.75,
+                        help='column combine gamma parameter (default: 1.75)')
     parser.add_argument('--momentum', default=0.9, type=float, help='momentum')
     parser.add_argument('--wd', '--weight-decay', default=1e-4, type=float,
                         help='weight decay (default: 1e-4)', dest='weight_decay')
@@ -114,5 +145,6 @@ if __name__ == '__main__':
 
     print(model)
     print(util.num_nonzeros(model))
+    print('Target Nonzeros:', util.target_nonzeros(model))
 
     train(model, train_loader, test_loader, args)
