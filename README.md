@@ -7,6 +7,13 @@ This paper describes a novel approach of packing sparse convolutional neural net
 
 A lightning talk on the paper can be found [here](https://www.youtube.com/watch?v=9ekKzEKQ1cU).
 
+<p align="center"> 
+<img src="https://github.com/BradMcDanel/column-combine/blob/master/figures/column-combine-overview.png" width=700>
+</p>
+
+<p align="center"> 
+<img src="https://github.com/BradMcDanel/column-combine/blob/master/figures/tile-reduction.png" width=400>
+</p>
 
 ## Training CNNs with Column Combining
 Use `train.py` to train a CNN with column combining. To make it easier to specify the number of layers and number of filters per layer, we parameterize the CNN into commandline arguments. The `--filters` flag takes a list of integers, correspondings to the number of filters in the layer. This is accompanied by the `--layers` flag, which determines how many layers are used for each number of filters. For instance, if the flags are `--filters 128 256 512 --layers 6 6 6`, then the CNN with have a total of 18 convolutional layers (plus one initial layer), with the first 6 layers having 128 filters, then next 6 with 256, and the final 6 with 512.  
